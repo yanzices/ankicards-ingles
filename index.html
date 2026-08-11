@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anki · Vocabulário Inglês</title>
+<style>
+  :root {
+    --bg-1: #1e1b4b;
+    --bg-2: #0f172a;
+    --card-front: #ffffff;
+    --card-back: #eef2ff;
+    --ink: #1e1b2e;
+    --ink-soft: #52526b;
+    --accent: #6366f1;
+    --accent-dark: #4338ca;
+    --green: #16a34a;
+    --green-dark: #15803d;
+    --red: #dc2626;
+    --red-dark: #b91c1c;
+    --amber: #d97706;
+    --pill-bg: rgba(255,255,255,0.12);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(circle at 20% 20%, var(--bg-1), var(--bg-2) 70%);
+    color: #f5f5f7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 40px;
+  }
+
+  header {
+    width: 100%;
+    max-width: 640px;
+    text-align: center;
+    margin-bottom: 18px;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  header p {
+    margin: 0;
+    color: #c7c7d9;
+    font-size: 0.9rem;
+  }
+
+  .stats-bar {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 16px 0 6px;
+    flex-wrap: wrap;
+  }
+
+  .pill {
+    background: var(--pill-bg);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pill .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .dot-new { background: #94a3b8; }
+  .dot-review { background: var(--red); }
+  .dot-known { background: var(--green); }
+
+  .progress-track {
+    width: 100%;
+    max-width: 640px;
+    height: 6px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 10px 0 22px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #a78bfa);
+    width: 0%;
+    transition: width 0.25s ease;
+  }
+
+  .stage {
+    width: 100%;
+    max-width: 640px;
+    perspective: 1600px;
+  }
+
+  .card {
+    position: relative;
+    width: 100%;
+    height: 320px;
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transition: transform 0.5s cubic-bezier(.4,.2,.2,1);
+  }
+
+  .card.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .card-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    text-align: center;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.35);
+  }
+
+  .card-front {
+    background: var(--card-front);
+    color: var(--ink);
+  }
+
+  .card-back {
+    background: var(--card-back);
+    color: var(--ink);
+    transform: rotateY(180deg);
+    gap: 16px;
+  }
+
+  .card-label {
+    position: absolute;
+    top: 18px;
+    left: 20px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--accent);
+    opacity: 0.7;
+  }
+
+  .term {
+    font-size: clamp(1.8rem, 6vw, 2.6rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  .hint {
+    margin-top: 18px;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  .definition {
+    font-size: 1.15rem;
+    font-weight: 600;
+    line-height: 1.4;
+    max-width: 480px;
+  }
+
+  .example {
+    font-size: 1rem;
+    font-style: italic;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    max-width: 480px;
+    border-left: 3px solid var(--accent);
+    padding-left: 14px;
+    text-align: left;
+  }
+
+  .no-example {
+    display: none;
+  }
+
+  .controls {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: inherit;
+    border: none;
+    border-radius: 12px;
+    padding: 11px 18px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s ease, filter 0.12s ease;
+    color: white;
+  }
+
+  button:active { transform: scale(0.96); }
+
+  .btn-nav {
+    background: rgba(255,255,255,0.12);
+    color: #f5f5f7;
+  }
+  .btn-nav:hover { background: rgba(255,255,255,0.2); }
+  .btn-nav:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .btn-flip {
+    background: var(--accent);
+  }
+  .btn-flip:hover { background: var(--accent-dark); }
+
+  .review-actions {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 14px;
+    min-height: 46px;
+  }
+
+  .btn-dont-know {
+    background: var(--red);
+    flex: 1;
+    max-width: 220px;
+  }
+  .btn-dont-know:hover { background: var(--red-dark); }
+
+  .btn-know {
+    background: var(--green);
+    flex: 1;
+    max-width: 220px;
+  }
+  .btn-know:hover { background: var(--green-dark); }
+
+  .toolbar {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 26px;
+    flex-wrap: wrap;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #d6d6e6;
+    font-weight: 500;
+    font-size: 0.82rem;
+    padding: 8px 14px;
+  }
+  .btn-ghost:hover { border-color: rgba(255,255,255,0.5); color: white; }
+
+  .btn-ghost.active {
+    border-color: var(--accent);
+    color: white;
+    background: rgba(99,102,241,0.25);
+  }
+
+  .empty-state {
+    width: 100%;
+    max-width: 640px;
+    text-align: center;
+    padding: 60px 20px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 22px;
+  }
+
+  .empty-state h2 { margin-top: 0; }
+
+  .kbd-hint {
+    margin-top: 22px;
+    font-size: 0.78rem;
+    color: #8a8aa3;
+    text-align: center;
+    max-width: 640px;
+  }
+
+  kbd {
+    background: rgba(255,255,255,0.12);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: inherit;
+  }
+
+  @media (max-width: 480px) {
+    .card { height: 280px; }
+    .term { font-size: 1.9rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📚 Vocabulário Inglês</h1>
+  <p><span id="totalCount">63</span> palavras · clique no card para virar</p>
+</header>
+
+<div class="stats-bar">
+  <span class="pill"><span class="dot dot-new"></span> Novas: <span id="statNew">0</span></span>
+  <span class="pill"><span class="dot dot-review"></span> Revisar: <span id="statReview">0</span></span>
+  <span class="pill"><span class="dot dot-known"></span> Sei: <span id="statKnown">0</span></span>
+</div>
+
+<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+<div id="stage" class="stage">
+  <div class="card" id="card">
+    <div class="card-face card-front">
+      <span class="card-label">Termo</span>
+      <div class="term" id="termText"></div>
+      <div class="hint">Clique ou pressione espaço para virar</div>
+    </div>
+    <div class="card-face card-back">
+      <span class="card-label">Definição</span>
+      <div class="definition" id="definitionText"></div>
+      <div class="example" id="exampleText"></div>
+    </div>
+  </div>
+</div>
+
+<div class="review-actions" id="reviewActions" style="visibility: hidden;">
+  <button class="btn-dont-know" id="btnDontKnow">✗ Preciso revisar</button>
+  <button class="btn-know" id="btnKnow">✓ Já sei</button>
+</div>
+
+<div class="controls">
+  <button class="btn-nav" id="btnPrev">← Anterior</button>
+  <button class="btn-flip" id="btnFlip">Virar card</button>
+  <button class="btn-nav" id="btnNext">Próximo →</button>
+</div>
+
+<div class="toolbar">
+  <button class="btn-ghost" id="btnShuffle">🔀 Embaralhar</button>
+  <button class="btn-ghost" id="btnFilterAll">Todas</button>
+  <button class="btn-ghost" id="btnFilterReview">Só revisar</button>
+  <button class="btn-ghost" id="btnReset">↺ Reiniciar progresso</button>
+</div>
+
+<p class="kbd-hint">
+  <kbd>Espaço</kbd> vira o card · <kbd>←</kbd> <kbd>→</kbd> navega ·
+  <kbd>1</kbd> preciso revisar · <kbd>2</kbd> já sei
+</p>
+
+<script>
+const ALL_CARDS = [
+  {
+    "term": "bottleneck",
+    "definition": "um ponto em um processo que desacelera ou bloqueia o fluxo de trabalho geral.",
+    "example": "The lack of resources created a bottleneck in the project."
+  },
+  {
+    "term": "daily standup",
+    "definition": "uma breve reunião diária da equipe para alinhar tarefas e impedimentos.",
+    "example": "We discuss our progress every morning during the daily standup."
+  },
+  {
+    "term": "deadline",
+    "definition": "o horário ou data limite em que algo deve ser concluído.",
+    "example": "The deadline for the report is this Friday at noon."
+  },
+  {
+    "term": "diving into",
+    "definition": "mergulhar em (aprofundar-se em um assunto ou tarefa).",
+    "example": "We are diving into the data to find new insights."
+  },
+  {
+    "term": "ground zero",
+    "definition": "o ponto de partida ou estágio inicial de um projeto ou processo.",
+    "example": "We had to restart the campaign from ground zero."
+  },
+  {
+    "term": "muddy",
+    "definition": "confuso ou pouco claro (usado para descrever uma situação ou comunicação).",
+    "example": "The current strategy is a bit muddy and needs more clarity."
+  },
+  {
+    "term": "outdated",
+    "definition": "obsoleto ou desatualizado.",
+    "example": "That software is outdated and no longer supported."
+  },
+  {
+    "term": "pivot",
+    "definition": "mudar a direção ou estratégia de um projeto ou negócio.",
+    "example": "The company decided to pivot to a digital-first model."
+  },
+  {
+    "term": "stakeholder",
+    "definition": "uma pessoa com interesse ou afetada pelo resultado de um projeto.",
+    "example": "Every stakeholder needs to be informed about the changes."
+  },
+  {
+    "term": "task",
+    "definition": "uma parte específica de trabalho a ser feita.",
+    "example": "Your first task is to update the contact list."
+  },
+  {
+    "term": "to allocate",
+    "definition": "atribuir uma quantidade específica de recursos a algo.",
+    "example": "The manager will allocate more budget to marketing."
+  },
+  {
+    "term": "to be in charge of",
+    "definition": "ter responsabilidade ou controle sobre algo.",
+    "example": "She is in charge of the sales department."
+  },
+  {
+    "term": "to delegate",
+    "definition": "atribuir uma tarefa ou responsabilidade a outra pessoa.",
+    "example": "A good leader knows how to delegate tasks effectively."
+  },
+  {
+    "term": "to escalate",
+    "definition": "passar um problema para alguém com mais autoridade.",
+    "example": "If the issue persists, we will have to escalate it."
+  },
+  {
+    "term": "to flag",
+    "definition": "chamar a atenção para um problema ou irregularidade.",
+    "example": "Please flag any errors you find in the document."
+  },
+  {
+    "term": "to follow up",
+    "definition": "verificar o status de algo discutido anteriormente.",
+    "example": "I will follow up with the client tomorrow morning."
+  },
+  {
+    "term": "to handle",
+    "definition": "lidar com ou gerenciar uma situação ou tarefa.",
+    "example": "He can handle multiple projects at the same time."
+  },
+  {
+    "term": "to manage",
+    "definition": "ser responsável por controlar ou administrar algo.",
+    "example": "It is important to manage your time wisely."
+  },
+  {
+    "term": "to oversee",
+    "definition": "supervisionar um processo, equipe ou projeto.",
+    "example": "She was hired to oversee the entire operation."
+  },
+  {
+    "term": "to prioritize",
+    "definition": "tratar algo como mais importante.",
+    "example": "We need to prioritize urgent client requests."
+  },
+  {
+    "term": "to report to",
+    "definition": "ter um gerente ou supervisor direto.",
+    "example": "The analysts report to the marketing director."
+  },
+  {
+    "term": "to sign off",
+    "definition": "dar a aprovação final.",
+    "example": "The CEO needs to sign off on the new budget."
+  },
+  {
+    "term": "turnaround time",
+    "definition": "o tempo necessário para concluir uma tarefa.",
+    "example": "Our turnaround time for support tickets is 24 hours."
+  },
+  {
+    "term": "workflow",
+    "definition": "a sequência de etapas para realizar o trabalho.",
+    "example": "We need to optimize our workflow to be more efficient."
+  },
+  {
+    "term": "workload",
+    "definition": "a quantidade de trabalho atribuída a uma pessoa.",
+    "example": "His workload has increased significantly this month."
+  },
+  {
+    "term": "to achieve",
+    "definition": "alcançar com sucesso um objetivo ou resultado.",
+    "example": "We hope to achieve our sales targets by December."
+  },
+  {
+    "term": "to deliver",
+    "definition": "produzir ou fornecer um resultado esperado.",
+    "example": "The team worked hard to deliver the project on time."
+  },
+  {
+    "term": "to miss a target",
+    "definition": "não conseguir atingir uma meta estabelecida.",
+    "example": "We missed our revenue target for the second quarter."
+  },
+  {
+    "term": "to exceed",
+    "definition": "ultrapassar um limite ou expectativa.",
+    "example": "The final results exceed our initial expectations."
+  },
+  {
+    "term": "quarter",
+    "definition": "um período de três meses de negócios.",
+    "example": "We are reviewing the results of the last quarter."
+  },
+  {
+    "term": "year-over-year (YoY)",
+    "definition": "comparação entre uma métrica deste ano e do ano passado.",
+    "example": "Our YoY growth has reached ten percent."
+  },
+  {
+    "term": "so far",
+    "definition": "até este momento no tempo.",
+    "example": "We have had great success with the campaign so far."
+  },
+  {
+    "term": "to date",
+    "definition": "até o momento presente.",
+    "example": "To date, we have collected data from over a thousand users."
+  },
+  {
+    "term": "milestone",
+    "definition": "um ponto significativo ou conquista.",
+    "example": "Reaching one million users was a major milestone."
+  },
+  {
+    "term": "outcome",
+    "definition": "o resultado final de uma action ou processo.",
+    "example": "The outcome of the experiment was very positive."
+  },
+  {
+    "term": "to track",
+    "definition": "monitorar ou acompanhar o progresso.",
+    "example": "We use specialized software to track conversions."
+  },
+  {
+    "term": "to report",
+    "definition": "comunicar formalmente informações.",
+    "example": "The manager will report the results to the board."
+  },
+  {
+    "term": "to increase",
+    "definition": "tornar-se maior ou crescer.",
+    "example": "We need to increase our brand awareness."
+  },
+  {
+    "term": "to decrease",
+    "definition": "tornar-se menor ou reduzir.",
+    "example": "Our costs decreased after we optimized the process."
+  },
+  {
+    "term": "to fall short of",
+    "definition": "não conseguir atingir um nível esperado.",
+    "example": "The final sales fell short of our goals."
+  },
+  {
+    "term": "to surpass",
+    "definition": "fazer melhor do que o esperado.",
+    "example": "We managed to surpass all our performance benchmarks."
+  },
+  {
+    "term": "benchmark",
+    "definition": "um padrão ou ponto de referência para comparação.",
+    "example": "This company is the benchmark for excellence in the industry."
+  },
+  {
+    "term": "performance",
+    "definition": "quão bem algo está funcionando.",
+    "example": "We are evaluating the performance of our latest ads."
+  },
+  {
+    "term": "trend",
+    "definition": "uma direção geral de desenvolvimento.",
+    "example": "The current trend shows a preference for mobile devices."
+  },
+  {
+    "term": "recap",
+    "definition": "um breve resumo dos pontos principais.",
+    "example": "Let's do a quick recap of what we decided today."
+  },
+  {
+    "term": "Offline Conversion Tracking",
+    "definition": "Rastreamento de conversões offline.",
+    "example": "We implemented offline conversion tracking to see which leads turned into sales."
+  },
+  {
+    "term": "Form Fill",
+    "definition": "Preenchimento de formulário.",
+    "example": "The landing page is designed to drive form fills."
+  },
+  {
+    "term": "Daily Data Flow",
+    "definition": "Fluxo de dados diário.",
+    "example": "We need to monitor the daily data flow to prevent errors."
+  },
+  {
+    "term": "Attribution Model / Attribution",
+    "definition": "Modelo de atribuição.",
+    "example": "Switching to a new attribution model changed our perception of ROI."
+  },
+  {
+    "term": "Overlapping Attribution",
+    "definition": "Atribuição sobreposta.",
+    "example": "We need to fix the overlapping attribution to avoid duplicate reporting."
+  },
+  {
+    "term": "Data Deduplication",
+    "definition": "Deduplicação de dados.",
+    "example": "Data deduplication helped us clean our CRM list."
+  },
+  {
+    "term": "Data-driven Attribution",
+    "definition": "Atribuição baseada em dados.",
+    "example": "Data-driven attribution allocates credit based on user behavior."
+  },
+  {
+    "term": "Incremental Value",
+    "definition": "Valor incremental.",
+    "example": "The campaign provided significant incremental value to our total revenue."
+  },
+  {
+    "term": "Marketing Mix Modeling (MMM)",
+    "definition": "Modelagem de mix de marketing.",
+    "example": "We use MMM to understand how our channels interact."
+  },
+  {
+    "term": "To bridge the gap",
+    "definition": "Preencher a lacuna.",
+    "example": "New tools help bridge the gap between sales and marketing."
+  },
+  {
+    "term": "To match data",
+    "definition": "Cruzar dados.",
+    "example": "It is difficult to match data from different platforms."
+  },
+  {
+    "term": "Security concerns",
+    "definition": "Preocupações com segurança.",
+    "example": "We have addressed the security concerns regarding the API."
+  },
+  {
+    "term": "Touchpoints",
+    "definition": "Pontos de contato.",
+    "example": "The customer interacts with many touchpoints before buying."
+  },
+  {
+    "term": "Dealing with",
+    "definition": "Lidando com.",
+    "example": "I am dealing with a complicated integration issue."
+  },
+  {
+    "term": "Prominent",
+    "definition": "Proeminente/Destacado.",
+    "example": "The results are quite prominent in the report."
+  },
+  {
+    "term": "Quite clever",
+    "definition": "Bastante inteligente.",
+    "example": "That script you wrote is quite clever."
+  },
+  {
+    "term": "Ensuring",
+    "definition": "Garantindo.",
+    "example": "We are ensuring the data is accurate before publishing."
+  },
+  {
+    "term": "Hurdle",
+    "definition": "Obstáculo.",
+    "example": "The regulatory changes are a major hurdle for us."
+  }
+];
+const STORAGE_KEY = "vocabAnkiProgress_v1";
+
+function loadProgress() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveProgress(progress) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+}
+
+let progress = loadProgress();
+let deck = [];
+let order = [];
+let pointer = 0;
+let flipped = false;
+let filterMode = "all";
+
+function statusOf(term) {
+  return progress[term] || "new";
+}
+
+function setStatus(term, status) {
+  progress[term] = status;
+  saveProgress(progress);
+  updateStats();
+}
+
+function buildDeck() {
+  if (filterMode === "review") {
+    deck = ALL_CARDS.filter(c => statusOf(c.term) === "review");
+  } else {
+    deck = ALL_CARDS.slice();
+  }
+  order = deck.map((_, i) => i);
+}
+
+function shuffleOrder() {
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  pointer = 0;
+  render();
+}
+
+function currentCard() {
+  if (order.length === 0) return null;
+  return deck[order[pointer]];
+}
+
+function updateStats() {
+  let newC = 0, reviewC = 0, knownC = 0;
+  ALL_CARDS.forEach(c => {
+    const s = statusOf(c.term);
+    if (s === "known") knownC++;
+    else if (s === "review") reviewC++;
+    else newC++;
+  });
+  document.getElementById("statNew").textContent = newC;
+  document.getElementById("statReview").textContent = reviewC;
+  document.getElementById("statKnown").textContent = knownC;
+
+  const seen = knownC + reviewC;
+  const pct = ALL_CARDS.length ? Math.round((seen / ALL_CARDS.length) * 100) : 0;
+  document.getElementById("progressFill").style.width = pct + "%";
+}
+
+function render() {
+  const stage = document.getElementById("stage");
+  const card = document.getElementById("card");
+  const reviewActions = document.getElementById("reviewActions");
+
+  if (order.length === 0) {
+    stage.innerHTML = `<div class="empty-state">
+      <h2>🎉 Nada para revisar por aqui</h2>
+      <p>Todas as palavras marcadas para revisão já foram estudadas. Volte para "Todas" para praticar tudo de novo.</p>
+    </div>`;
+    reviewActions.style.visibility = "hidden";
+    document.getElementById("btnFlip").disabled = true;
+    document.getElementById("btnPrev").disabled = true;
+    document.getElementById("btnNext").disabled = true;
+    return;
+  }
+
+  if (!document.getElementById("card")) {
+    stage.innerHTML = `<div class="card" id="card">
+      <div class="card-face card-front">
+        <span class="card-label">Termo</span>
+        <div class="term" id="termText"></div>
+        <div class="hint">Clique ou pressione espaço para virar</div>
+      </div>
+      <div class="card-face card-back">
+        <span class="card-label">Definição</span>
+        <div class="definition" id="definitionText"></div>
+        <div class="example" id="exampleText"></div>
+      </div>
+    </div>`;
+    attachCardClick();
+  }
+
+  document.getElementById("btnFlip").disabled = false;
+  document.getElementById("btnPrev").disabled = pointer === 0;
+  document.getElementById("btnNext").disabled = pointer === order.length - 1;
+
+  const c = currentCard();
+  document.getElementById("termText").textContent = c.term;
+  document.getElementById("definitionText").textContent = c.definition;
+  const exampleEl = document.getElementById("exampleText");
+  if (c.example) {
+    exampleEl.textContent = "“" + c.example + "”";
+    exampleEl.classList.remove("no-example");
+  } else {
+    exampleEl.textContent = "";
+    exampleEl.classList.add("no-example");
+  }
+
+  flipped = false;
+  document.getElementById("card").classList.remove("flipped");
+  reviewActions.style.visibility = "hidden";
+
+  document.title = `(${pointer + 1}/${order.length}) ${c.term} · Vocabulário Inglês`;
+}
+
+function attachCardClick() {
+  document.getElementById("card").addEventListener("click", toggleFlip);
+}
+
+function toggleFlip() {
+  if (order.length === 0) return;
+  flipped = !flipped;
+  document.getElementById("card").classList.toggle("flipped", flipped);
+  document.getElementById("reviewActions").style.visibility = flipped ? "visible" : "hidden";
+}
+
+function goNext() {
+  if (pointer < order.length - 1) {
+    pointer++;
+    render();
+  }
+}
+
+function goPrev() {
+  if (pointer > 0) {
+    pointer--;
+    render();
+  }
+}
+
+function markCurrent(status) {
+  const c = currentCard();
+  if (!c) return;
+  setStatus(c.term, status);
+  if (filterMode === "review" && status === "known") {
+    order.splice(pointer, 1);
+    if (pointer >= order.length) pointer = Math.max(0, order.length - 1);
+    render();
+  } else {
+    goNext();
+  }
+}
+
+document.getElementById("btnFlip").addEventListener("click", toggleFlip);
+document.getElementById("btnNext").addEventListener("click", goNext);
+document.getElementById("btnPrev").addEventListener("click", goPrev);
+document.getElementById("btnShuffle").addEventListener("click", shuffleOrder);
+document.getElementById("btnDontKnow").addEventListener("click", () => markCurrent("review"));
+document.getElementById("btnKnow").addEventListener("click", () => markCurrent("known"));
+
+document.getElementById("btnFilterAll").addEventListener("click", () => {
+  filterMode = "all";
+  document.getElementById("btnFilterAll").classList.add("active");
+  document.getElementById("btnFilterReview").classList.remove("active");
+  buildDeck();
+  pointer = 0;
+  render();
+});
+
+document.getElementById("btnFilterReview").addEventListener("click", () => {
+  filterMode = "review";
+  document.getElementById("btnFilterReview").classList.add("active");
+  document.getElementById("btnFilterAll").classList.remove("active");
+  buildDeck();
+  pointer = 0;
+  render();
+});
+
+document.getElementById("btnReset").addEventListener("click", () => {
+  if (confirm("Reiniciar todo o progresso salvo (sei / preciso revisar)?")) {
+    progress = {};
+    saveProgress(progress);
+    buildDeck();
+    pointer = 0;
+    updateStats();
+    render();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space") {
+    e.preventDefault();
+    toggleFlip();
+  } else if (e.code === "ArrowRight") {
+    goNext();
+  } else if (e.code === "ArrowLeft") {
+    goPrev();
+  } else if (e.key === "1") {
+    if (flipped) markCurrent("review");
+  } else if (e.key === "2") {
+    if (flipped) markCurrent("known");
+  }
+});
+
+document.getElementById("btnFilterAll").classList.add("active");
+attachCardClick();
+buildDeck();
+updateStats();
+render();
+</script>
+
+</body>
+</html>

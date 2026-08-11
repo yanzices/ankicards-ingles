@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anki · Vocabulário Inglês</title>
+<style>
+  :root {
+    --bg-1: #1e1b4b;
+    --bg-2: #0f172a;
+    --card-front: #ffffff;
+    --card-back: #eef2ff;
+    --ink: #1e1b2e;
+    --ink-soft: #52526b;
+    --accent: #6366f1;
+    --accent-dark: #4338ca;
+    --green: #16a34a;
+    --green-dark: #15803d;
+    --red: #dc2626;
+    --red-dark: #b91c1c;
+    --amber: #d97706;
+    --pill-bg: rgba(255,255,255,0.12);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: radial-gradient(circle at 20% 20%, var(--bg-1), var(--bg-2) 70%);
+    color: #f5f5f7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 40px;
+  }
+
+  header {
+    width: 100%;
+    max-width: 640px;
+    text-align: center;
+    margin-bottom: 18px;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  header p {
+    margin: 0;
+    color: #c7c7d9;
+    font-size: 0.9rem;
+  }
+
+  .stats-bar {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 16px 0 6px;
+    flex-wrap: wrap;
+  }
+
+  .pill {
+    background: var(--pill-bg);
+    border-radius: 999px;
+    padding: 5px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pill .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .dot-new { background: #94a3b8; }
+  .dot-review { background: var(--red); }
+  .dot-known { background: var(--green); }
+
+  .progress-track {
+    width: 100%;
+    max-width: 640px;
+    height: 6px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 10px 0 22px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #a78bfa);
+    width: 0%;
+    transition: width 0.25s ease;
+  }
+
+  .stage {
+    width: 100%;
+    max-width: 640px;
+    perspective: 1600px;
+  }
+
+  .card {
+    position: relative;
+    width: 100%;
+    height: 320px;
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transition: transform 0.5s cubic-bezier(.4,.2,.2,1);
+  }
+
+  .card.flipped {
+    transform: rotateY(180deg);
+  }
+
+  .card-face {
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    text-align: center;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.35);
+  }
+
+  .card-front {
+    background: var(--card-front);
+    color: var(--ink);
+  }
+
+  .card-back {
+    background: var(--card-back);
+    color: var(--ink);
+    transform: rotateY(180deg);
+    gap: 16px;
+  }
+
+  .card-label {
+    position: absolute;
+    top: 18px;
+    left: 20px;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    color: var(--accent);
+    opacity: 0.7;
+  }
+
+  .term {
+    font-size: clamp(1.8rem, 6vw, 2.6rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  .hint {
+    margin-top: 18px;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  .definition {
+    font-size: 1.15rem;
+    font-weight: 600;
+    line-height: 1.4;
+    max-width: 480px;
+  }
+
+  .example {
+    font-size: 1rem;
+    font-style: italic;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    max-width: 480px;
+    border-left: 3px solid var(--accent);
+    padding-left: 14px;
+    text-align: left;
+  }
+
+  .no-example {
+    display: none;
+  }
+
+  .controls {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    font-family: inherit;
+    border: none;
+    border-radius: 12px;
+    padding: 11px 18px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s ease, filter 0.12s ease;
+    color: white;
+  }
+
+  button:active { transform: scale(0.96); }
+
+  .btn-nav {
+    background: rgba(255,255,255,0.12);
+    color: #f5f5f7;
+  }
+  .btn-nav:hover { background: rgba(255,255,255,0.2); }
+  .btn-nav:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  .btn-flip {
+    background: var(--accent);
+  }
+  .btn-flip:hover { background: var(--accent-dark); }
+
+  .review-actions {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 14px;
+    min-height: 46px;
+  }
+
+  .btn-dont-know {
+    background: var(--red);
+    flex: 1;
+    max-width: 220px;
+  }
+  .btn-dont-know:hover { background: var(--red-dark); }
+
+  .btn-know {
+    background: var(--green);
+    flex: 1;
+    max-width: 220px;
+  }
+  .btn-know:hover { background: var(--green-dark); }
+
+  .toolbar {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 26px;
+    flex-wrap: wrap;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #d6d6e6;
+    font-weight: 500;
+    font-size: 0.82rem;
+    padding: 8px 14px;
+  }
+  .btn-ghost:hover { border-color: rgba(255,255,255,0.5); color: white; }
+
+  .btn-ghost.active {
+    border-color: var(--accent);
+    color: white;
+    background: rgba(99,102,241,0.25);
+  }
+
+  .empty-state {
+    width: 100%;
+    max-width: 640px;
+    text-align: center;
+    padding: 60px 20px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 22px;
+  }
+
+  .empty-state h2 { margin-top: 0; }
+
+  .kbd-hint {
+    margin-top: 22px;
+    font-size: 0.78rem;
+    color: #8a8aa3;
+    text-align: center;
+    max-width: 640px;
+  }
+
+  kbd {
+    background: rgba(255,255,255,0.12);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: inherit;
+  }
+
+  @media (max-width: 480px) {
+    .card { height: 280px; }
+    .term { font-size: 1.9rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📚 Vocabulário Inglês</h1>
+  <p><span id="totalCount">__CARD_COUNT__</span> palavras · clique no card para virar</p>
+</header>
+
+<div class="stats-bar">
+  <span class="pill"><span class="dot dot-new"></span> Novas: <span id="statNew">0</span></span>
+  <span class="pill"><span class="dot dot-review"></span> Revisar: <span id="statReview">0</span></span>
+  <span class="pill"><span class="dot dot-known"></span> Sei: <span id="statKnown">0</span></span>
+</div>
+
+<div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+<div id="stage" class="stage">
+  <div class="card" id="card">
+    <div class="card-face card-front">
+      <span class="card-label">Termo</span>
+      <div class="term" id="termText"></div>
+      <div class="hint">Clique ou pressione espaço para virar</div>
+    </div>
+    <div class="card-face card-back">
+      <span class="card-label">Definição</span>
+      <div class="definition" id="definitionText"></div>
+      <div class="example" id="exampleText"></div>
+    </div>
+  </div>
+</div>
+
+<div class="review-actions" id="reviewActions" style="visibility: hidden;">
+  <button class="btn-dont-know" id="btnDontKnow">✗ Preciso revisar</button>
+  <button class="btn-know" id="btnKnow">✓ Já sei</button>
+</div>
+
+<div class="controls">
+  <button class="btn-nav" id="btnPrev">← Anterior</button>
+  <button class="btn-flip" id="btnFlip">Virar card</button>
+  <button class="btn-nav" id="btnNext">Próximo →</button>
+</div>
+
+<div class="toolbar">
+  <button class="btn-ghost" id="btnShuffle">🔀 Embaralhar</button>
+  <button class="btn-ghost" id="btnFilterAll">Todas</button>
+  <button class="btn-ghost" id="btnFilterReview">Só revisar</button>
+  <button class="btn-ghost" id="btnReset">↺ Reiniciar progresso</button>
+</div>
+
+<p class="kbd-hint">
+  <kbd>Espaço</kbd> vira o card · <kbd>←</kbd> <kbd>→</kbd> navega ·
+  <kbd>1</kbd> preciso revisar · <kbd>2</kbd> já sei
+</p>
+
+<script>
+const ALL_CARDS = __CARDS_JSON__;
+const STORAGE_KEY = "vocabAnkiProgress_v1";
+
+function loadProgress() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveProgress(progress) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+}
+
+let progress = loadProgress();
+let deck = [];
+let order = [];
+let pointer = 0;
+let flipped = false;
+let filterMode = "all";
+
+function statusOf(term) {
+  return progress[term] || "new";
+}
+
+function setStatus(term, status) {
+  progress[term] = status;
+  saveProgress(progress);
+  updateStats();
+}
+
+function buildDeck() {
+  if (filterMode === "review") {
+    deck = ALL_CARDS.filter(c => statusOf(c.term) === "review");
+  } else {
+    deck = ALL_CARDS.slice();
+  }
+  order = deck.map((_, i) => i);
+}
+
+function shuffleOrder() {
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  pointer = 0;
+  render();
+}
+
+function currentCard() {
+  if (order.length === 0) return null;
+  return deck[order[pointer]];
+}
+
+function updateStats() {
+  let newC = 0, reviewC = 0, knownC = 0;
+  ALL_CARDS.forEach(c => {
+    const s = statusOf(c.term);
+    if (s === "known") knownC++;
+    else if (s === "review") reviewC++;
+    else newC++;
+  });
+  document.getElementById("statNew").textContent = newC;
+  document.getElementById("statReview").textContent = reviewC;
+  document.getElementById("statKnown").textContent = knownC;
+
+  const seen = knownC + reviewC;
+  const pct = ALL_CARDS.length ? Math.round((seen / ALL_CARDS.length) * 100) : 0;
+  document.getElementById("progressFill").style.width = pct + "%";
+}
+
+function render() {
+  const stage = document.getElementById("stage");
+  const card = document.getElementById("card");
+  const reviewActions = document.getElementById("reviewActions");
+
+  if (order.length === 0) {
+    stage.innerHTML = `<div class="empty-state">
+      <h2>🎉 Nada para revisar por aqui</h2>
+      <p>Todas as palavras marcadas para revisão já foram estudadas. Volte para "Todas" para praticar tudo de novo.</p>
+    </div>`;
+    reviewActions.style.visibility = "hidden";
+    document.getElementById("btnFlip").disabled = true;
+    document.getElementById("btnPrev").disabled = true;
+    document.getElementById("btnNext").disabled = true;
+    return;
+  }
+
+  if (!document.getElementById("card")) {
+    stage.innerHTML = `<div class="card" id="card">
+      <div class="card-face card-front">
+        <span class="card-label">Termo</span>
+        <div class="term" id="termText"></div>
+        <div class="hint">Clique ou pressione espaço para virar</div>
+      </div>
+      <div class="card-face card-back">
+        <span class="card-label">Definição</span>
+        <div class="definition" id="definitionText"></div>
+        <div class="example" id="exampleText"></div>
+      </div>
+    </div>`;
+    attachCardClick();
+  }
+
+  document.getElementById("btnFlip").disabled = false;
+  document.getElementById("btnPrev").disabled = pointer === 0;
+  document.getElementById("btnNext").disabled = pointer === order.length - 1;
+
+  const c = currentCard();
+  document.getElementById("termText").textContent = c.term;
+  document.getElementById("definitionText").textContent = c.definition;
+  const exampleEl = document.getElementById("exampleText");
+  if (c.example) {
+    exampleEl.textContent = "“" + c.example + "”";
+    exampleEl.classList.remove("no-example");
+  } else {
+    exampleEl.textContent = "";
+    exampleEl.classList.add("no-example");
+  }
+
+  flipped = false;
+  document.getElementById("card").classList.remove("flipped");
+  reviewActions.style.visibility = "hidden";
+
+  document.title = `(${pointer + 1}/${order.length}) ${c.term} · Vocabulário Inglês`;
+}
+
+function attachCardClick() {
+  document.getElementById("card").addEventListener("click", toggleFlip);
+}
+
+function toggleFlip() {
+  if (order.length === 0) return;
+  flipped = !flipped;
+  document.getElementById("card").classList.toggle("flipped", flipped);
+  document.getElementById("reviewActions").style.visibility = flipped ? "visible" : "hidden";
+}
+
+function goNext() {
+  if (pointer < order.length - 1) {
+    pointer++;
+    render();
+  }
+}
+
+function goPrev() {
+  if (pointer > 0) {
+    pointer--;
+    render();
+  }
+}
+
+function markCurrent(status) {
+  const c = currentCard();
+  if (!c) return;
+  setStatus(c.term, status);
+  if (filterMode === "review" && status === "known") {
+    order.splice(pointer, 1);
+    if (pointer >= order.length) pointer = Math.max(0, order.length - 1);
+    render();
+  } else {
+    goNext();
+  }
+}
+
+document.getElementById("btnFlip").addEventListener("click", toggleFlip);
+document.getElementById("btnNext").addEventListener("click", goNext);
+document.getElementById("btnPrev").addEventListener("click", goPrev);
+document.getElementById("btnShuffle").addEventListener("click", shuffleOrder);
+document.getElementById("btnDontKnow").addEventListener("click", () => markCurrent("review"));
+document.getElementById("btnKnow").addEventListener("click", () => markCurrent("known"));
+
+document.getElementById("btnFilterAll").addEventListener("click", () => {
+  filterMode = "all";
+  document.getElementById("btnFilterAll").classList.add("active");
+  document.getElementById("btnFilterReview").classList.remove("active");
+  buildDeck();
+  pointer = 0;
+  render();
+});
+
+document.getElementById("btnFilterReview").addEventListener("click", () => {
+  filterMode = "review";
+  document.getElementById("btnFilterReview").classList.add("active");
+  document.getElementById("btnFilterAll").classList.remove("active");
+  buildDeck();
+  pointer = 0;
+  render();
+});
+
+document.getElementById("btnReset").addEventListener("click", () => {
+  if (confirm("Reiniciar todo o progresso salvo (sei / preciso revisar)?")) {
+    progress = {};
+    saveProgress(progress);
+    buildDeck();
+    pointer = 0;
+    updateStats();
+    render();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space") {
+    e.preventDefault();
+    toggleFlip();
+  } else if (e.code === "ArrowRight") {
+    goNext();
+  } else if (e.code === "ArrowLeft") {
+    goPrev();
+  } else if (e.key === "1") {
+    if (flipped) markCurrent("review");
+  } else if (e.key === "2") {
+    if (flipped) markCurrent("known");
+  }
+});
+
+document.getElementById("btnFilterAll").classList.add("active");
+attachCardClick();
+buildDeck();
+updateStats();
+render();
+</script>
+
+</body>
+</html>
