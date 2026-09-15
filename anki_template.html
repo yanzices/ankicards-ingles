@@ -387,6 +387,7 @@
 <script>
 const ALL_CARDS = __CARDS_JSON__;
 const STORAGE_KEY = "vocabAnkiProgress_v1";
+const SESSION_KEY = "vocabAnkiSession_v1";
 
 function loadProgress() {
   try {
@@ -397,7 +398,40 @@ function loadProgress() {
 }
 
 function saveProgress(progress) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  } catch (e) {
+    // localStorage indisponível (ex.: modo privado) — segue sem salvar.
+  }
+}
+
+function loadSession() {
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY)) || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveSession() {
+  // A posicao so eh persistida para o baralho "Todas": eh o unico modo
+  // estavel entre carregamentos (o filtro "So revisar" ja deriva seu
+  // conteudo do progresso salvo por palavra).
+  if (filterMode !== "all") return;
+  try {
+    const terms = order.map(i => deck[i].term);
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ terms, pointer }));
+  } catch (e) {
+    // localStorage indisponível (ex.: modo privado) — segue sem salvar.
+  }
+}
+
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 let progress = loadProgress();
@@ -420,18 +454,37 @@ function setStatus(term, status) {
 function buildDeck() {
   if (filterMode === "review") {
     deck = ALL_CARDS.filter(c => statusOf(c.term) === "review");
-  } else {
-    deck = ALL_CARDS.slice();
+    order = deck.map((_, i) => i);
+    pointer = 0;
+    return;
   }
-  order = deck.map((_, i) => i);
+
+  deck = ALL_CARDS.slice();
+  const allTerms = deck.map(c => c.term);
+  const saved = loadSession();
+  const validSaved = saved
+    && Array.isArray(saved.terms)
+    && saved.terms.length === allTerms.length
+    && saved.terms.every(t => allTerms.includes(t));
+
+  if (validSaved) {
+    // Retoma exatamente de onde parou (mesma ordem e mesma palavra).
+    order = saved.terms.map(t => deck.findIndex(c => c.term === t));
+    pointer = Math.min(Math.max(saved.pointer || 0, 0), order.length - 1);
+  } else {
+    // Primeira vez, ou o vocabulario mudou (palavras novas/removidas):
+    // comeca uma rodada nova com ordem embaralhada.
+    order = deck.map((_, i) => i);
+    shuffleInPlace(order);
+    pointer = 0;
+    saveSession();
+  }
 }
 
 function shuffleOrder() {
-  for (let i = order.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [order[i], order[j]] = [order[j], order[i]];
-  }
+  shuffleInPlace(order);
   pointer = 0;
+  saveSession();
   render();
 }
 
@@ -492,7 +545,7 @@ function render() {
 
   document.getElementById("btnFlip").disabled = false;
   document.getElementById("btnPrev").disabled = pointer === 0;
-  document.getElementById("btnNext").disabled = pointer === order.length - 1;
+  document.getElementById("btnNext").disabled = false;
 
   const c = currentCard();
   document.getElementById("termText").textContent = c.term;
@@ -525,15 +578,22 @@ function toggleFlip() {
 }
 
 function goNext() {
+  if (order.length === 0) return;
   if (pointer < order.length - 1) {
     pointer++;
-    render();
+  } else {
+    // Terminou a rodada: comeca a proxima com uma ordem embaralhada nova.
+    shuffleInPlace(order);
+    pointer = 0;
   }
+  saveSession();
+  render();
 }
 
 function goPrev() {
   if (pointer > 0) {
     pointer--;
+    saveSession();
     render();
   }
 }
@@ -563,7 +623,6 @@ document.getElementById("btnFilterAll").addEventListener("click", () => {
   document.getElementById("btnFilterAll").classList.add("active");
   document.getElementById("btnFilterReview").classList.remove("active");
   buildDeck();
-  pointer = 0;
   render();
 });
 
@@ -572,16 +631,15 @@ document.getElementById("btnFilterReview").addEventListener("click", () => {
   document.getElementById("btnFilterReview").classList.add("active");
   document.getElementById("btnFilterAll").classList.remove("active");
   buildDeck();
-  pointer = 0;
   render();
 });
 
 document.getElementById("btnReset").addEventListener("click", () => {
-  if (confirm("Reiniciar todo o progresso salvo (sei / preciso revisar)?")) {
+  if (confirm("Reiniciar todo o progresso salvo (sei / preciso revisar / posição atual)?")) {
     progress = {};
     saveProgress(progress);
+    try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
     buildDeck();
-    pointer = 0;
     updateStats();
     render();
   }
