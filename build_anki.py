@@ -26,47 +26,68 @@ W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 NS = {"w": W_NS}
 
 
-def extract_table_rows(docx_path):
+def extract_tables(docx_path):
+    """Retorna uma lista de tabelas, cada uma como lista de linhas (linha = lista de celulas).
+
+    O Word pode acabar com mais de uma tabela no mesmo documento (ex.: quando
+    novas palavras sao coladas/adicionadas como uma tabela separada em vez de
+    novas linhas na tabela original) - por isso lemos TODAS as tabelas do
+    documento, nao so a primeira.
+    """
     with zipfile.ZipFile(docx_path) as z:
         with z.open("word/document.xml") as f:
             root = ET.parse(f).getroot()
 
-    table = root.find(".//w:tbl", NS)
-    if table is None:
+    body = root.find("w:body", NS)
+    if body is None:
+        raise SystemExit("Documento '%s' sem corpo valido." % docx_path)
+
+    tables = body.findall("w:tbl", NS)
+    if not tables:
         raise SystemExit("Nenhuma tabela encontrada em '%s'." % docx_path)
 
-    rows = []
-    for tr in table.findall("w:tr", NS):
-        cells = []
-        for tc in tr.findall("w:tc", NS):
-            paragraphs = []
-            for p in tc.findall(".//w:p", NS):
-                text = "".join(t.text or "" for t in p.findall(".//w:t", NS))
-                paragraphs.append(text)
-            cells.append("\n".join(paragraphs).strip())
-        rows.append(cells)
-    return rows
+    all_tables = []
+    for table in tables:
+        rows = []
+        for tr in table.findall("w:tr", NS):
+            cells = []
+            for tc in tr.findall("w:tc", NS):
+                paragraphs = []
+                for p in tc.findall(".//w:p", NS):
+                    text = "".join(t.text or "" for t in p.findall(".//w:t", NS))
+                    paragraphs.append(text)
+                cells.append("\n".join(paragraphs).strip())
+            rows.append(cells)
+        all_tables.append(rows)
+    return all_tables
 
 
-def build_cards(rows):
-    if not rows:
-        return []
-
-    data_rows = rows[1:] if rows and rows[0][:1] and "termo" in rows[0][0].lower() else rows
-
+def build_cards(all_tables):
     cards = []
-    for row in data_rows:
-        row = (row + ["", "", ""])[:3]
-        term, definition, example = (c.strip() for c in row)
-        if not term:
+    seen_terms = set()
+    for rows in all_tables:
+        if not rows:
             continue
-        cards.append({"term": term, "definition": definition, "example": example})
+        # Cada tabela pode ou nao ter sua propria linha de cabecalho
+        # ("Termo | Definicao (PT) | Exemplo (EN)") - descartamos so se houver.
+        data_rows = rows[1:] if rows[0][:1] and "termo" in rows[0][0].lower() else rows
+
+        for row in data_rows:
+            row = (row + ["", "", ""])[:3]
+            term, definition, example = (c.strip() for c in row)
+            if not term:
+                continue
+            key = term.lower()
+            if key in seen_terms:
+                continue
+            seen_terms.add(key)
+            cards.append({"term": term, "definition": definition, "example": example})
     return cards
 
 
 def main():
-    rows = extract_table_rows(DOCX_PATH)
-    cards = build_cards(rows)
+    all_tables = extract_tables(DOCX_PATH)
+    cards = build_cards(all_tables)
     if not cards:
         raise SystemExit("Nenhum card encontrado no documento.")
 
